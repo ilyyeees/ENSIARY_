@@ -1,0 +1,54 @@
+name: Build ENSIARY
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        qt-version: [6.8.0]
+        
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install Qt
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ matrix.qt-version }}
+        host: ${{ runner.os }}
+        target: desktop
+        arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || '' }}
+        
+    - name: Setup MinGW (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: egor-tensin/setup-mingw@v2
+      with:
+        platform: x64
+        
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential libgl1-mesa-dev
+        
+    - name: Build project
+      run: |
+        qmake ENSIARY.pro
+        make
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ENSIARY-${{ matrix.os }}-Qt${{ matrix.qt-version }}
+        path: |
+          ENSIARY*
+          *.exe
+        retention-days: 30
